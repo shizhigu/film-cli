@@ -802,6 +802,16 @@ async function generateFrame(args: string[]) {
   // Save prompt to file
   Bun.write(join(shotDir, "frame_prompt.txt"), prompt);
 
+  // Objective IQA scoring
+  let iqaData: any = {};
+  try {
+    const { assessImageQuality, formatIQA } = await import("../integrations/iqa");
+    console.error(`  Running IQA metrics...`);
+    const iqa = assessImageQuality(result.imagePath);
+    console.error(formatIQA(iqa));
+    iqaData = { niqe: iqa.niqe, musiq: iqa.musiq, nima: iqa.nima, iqa_verdict: iqa.verdict };
+  } catch {}
+
   db.close();
 
   success(`Frame generated: ${result.imagePath} (${result.sizeKb}KB)`, {
@@ -811,6 +821,7 @@ async function generateFrame(args: string[]) {
     frame_path: result.imagePath,
     size_kb: result.sizeKb,
     status: "frame_generated",
+    ...iqaData,
     rule_warnings: ruleResults.filter(r => r.severity === "warning").map(r => r.message),
   });
 }
