@@ -569,6 +569,34 @@ async function generateFrame(args: string[]) {
     process.exit(1);
   }
 
+  // === GREEDY ENFORCEMENT ===
+  // Shot N can only start when shot N-1 is accepted (or shot 1).
+  // This prevents batch production and forces sequential quality-gated workflow.
+  // Use --force to override (e.g., for insert shots or parallel scenes).
+  if (shotNum > 1 && !args.includes("--force")) {
+    const db_check = openDb();
+    const ep_check = getEpisode(db_check, epNum);
+    if (ep_check) {
+      // Find the previous shot in sequence
+      const prevShots = getShots(db_check, ep_check.id)
+        .filter(s => s.number < shotNum)
+        .sort((a, b) => b.number - a.number);
+      if (prevShots.length > 0) {
+        const prevShot = prevShots[0];
+        if (prevShot.status !== "accepted") {
+          db_check.close();
+          error(
+            `GREEDY BLOCK: Shot ${prevShot.number} is '${prevShot.status}', not 'accepted'.\n` +
+            `  Greedy workflow requires completing shots in order.\n` +
+            `  Finish shot ${prevShot.number} first, or use --force to skip.`
+          );
+          process.exit(1);
+        }
+      }
+    }
+    db_check.close();
+  }
+
   // Get prompt: from spec (auto-compose) > --prompt > --prompt-file
   const db_pre = openDb();
   const shot_pre = getShot(db_pre, epNum, shotNum);
@@ -867,6 +895,26 @@ async function generateVideoCmd(args: string[]) {
   if (isNaN(epNum) || isNaN(shotNum)) {
     error("Usage: film shot generate-video <ep> <shot> --prompt <text> | --prompt-file <path>");
     process.exit(1);
+  }
+
+  // === GREEDY ENFORCEMENT (same as generate-frame) ===
+  if (shotNum > 1 && !args.includes("--force")) {
+    const db_check = openDb();
+    const ep_check = getEpisode(db_check, epNum);
+    if (ep_check) {
+      const prevShots = getShots(db_check, ep_check.id)
+        .filter(s => s.number < shotNum)
+        .sort((a, b) => b.number - a.number);
+      if (prevShots.length > 0 && prevShots[0].status !== "accepted") {
+        db_check.close();
+        error(
+          `GREEDY BLOCK: Shot ${prevShots[0].number} is '${prevShots[0].status}', not 'accepted'.\n` +
+          `  Complete shot ${prevShots[0].number} first, or use --force.`
+        );
+        process.exit(1);
+      }
+    }
+    db_check.close();
   }
 
   // Get prompt: from spec (auto-compose) > --prompt > --prompt-file
