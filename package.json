@@ -1,0 +1,21 @@
+{
+  "name": "film-cli",
+  "version": "0.1.0",
+  "description": "AI filmmaking production harness — quality-gated, agent-driven narrative video pipeline",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "film": "./src/cli.ts"
+  },
+  "scripts": {
+    "dev": "bun run src/cli.ts",
+    "test": "bun test",
+    "build": "bun build src/cli.ts --outdir dist --target bun"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
